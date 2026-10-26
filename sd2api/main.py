@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 
 from .config import CONFIG_PATH, RuntimeConfig, save_runtime_config, settings
+from . import media
 from .browser_client import BrowserTikTokClient
 from .browser_pool import BrowserPoolClient
 from .models import (
@@ -44,6 +45,9 @@ from . import __version__
 logger = logging.getLogger("sd2api")
 store = TaskStore(settings.sd2api_database)
 uploads = UploadManager(settings)
+video_cache = media.VideoCache(Path(settings.sd2api_upload_dir).resolve() / "video-cache")
+# Without a configured master key, share links still work but stop working after a restart.
+share_link_fallback_secret = secrets.token_urlsafe(32)
 admin_static_dir = Path(__file__).with_name("static")
 TTOH_RSS_URL = "https://ttoh.app/rss.xml"
 TTOH_HOME_URL = "https://ttoh.app/"
@@ -531,6 +535,18 @@ async def admin_script() -> FileResponse:
     )
 
 
+@app.get("/admin/assets/admin-media.css", include_in_schema=False)
+async def admin_media_styles() -> FileResponse:
+    return FileResponse(admin_static_dir / "admin-media.css", media_type="text/css")
+
+
+@app.get("/admin/assets/admin-media.js", include_in_schema=False)
+async def admin_media_script() -> FileResponse:
+    return FileResponse(
+        admin_static_dir / "admin-media.js", media_type="application/javascript"
+    )
+
+
 def parse_ttoh_datetime(value: str | None) -> int | None:
     if not value:
         return None
@@ -952,6 +968,12 @@ def admin_task(record: TaskRecord) -> dict[str, Any]:
         "downloadable": record.status == "succeeded" and bool(record.video_url),
         "error_code": record.error_code,
         "error_message": record.error_message,
+        "poster_url": record.poster_url,
+        "share_url": (
+            media.share_path(share_link_secret(), record.id)
+            if record.status == "succeeded" and record.video_url
+            else None
+        ),
     }
 
 
@@ -1663,3 +1685,43 @@ async def download_openai_video(video_id: str) -> Response:
     if response.headers.get("content-length"):
         headers["content-length"] = response.headers["content-length"]
     return StreamingResponse(stream(), media_type="video/mp4", headers=headers)
+
+
+def share_link_secret() -> str:
+    return settings.credential_master_key or share_link_fallback_secret
+
+
+async def fetch_video_body(record: TaskRecord) -> bytes:
+    record = await refresh(
+        record,
+        force=isinstance(client, BrowserPoolClient)
+        and not record.id.startswith("browser_"),
+    )
+    if record.status != "succeeded":
+        raise HTTPException(status_code=409, detail=f"Video is {openai_status(record.status)}")
+    if not record.video_url:
+        raise TikTokUpstreamError("TikTok marked the task complete without a video URL")
+    if isinstance(client, BrowserPoolClient):
+        body, _ = await client.fetch_video(record.video_url, record.account_id)
+        return body
+    if isinstance(client, BrowserTikTokClient):
+        body, _ = await client.fetch_video(record.video_url)
+        return body
+    async with httpx.AsyncClient(timeout=180, follow_redirects=True) as download_client:
+        response = await download_client.get(record.video_url)
+    if response.status_code >= 400:
+        raise TikTokUpstreamError(f"TikTok CDN returned HTTP {response.status_code}")
+    return response.content
+
+
+@app.api_route("/share/videos/{task_id}.mp4", methods=["GET", "HEAD"], include_in_schema=False)
+async def download_shared_video(task_id: str, sig: str = "") -> FileResponse:
+    if not media.verify_share_signature(share_link_secret(), task_id, sig):
+        raise not_found(task_id)
+    record = store.get(task_id)
+    if record is None:
+        raise not_found(task_id)
+    if record.status != "succeeded":
+        raise HTTPException(status_code=409, detail=f"Video is {openai_status(record.status)}")
+    path = await video_cache.get(record.id, lambda: fetch_video_body(record))
+    return FileResponse(path, media_type="video/mp4", filename=f"{record.id}.mp4")

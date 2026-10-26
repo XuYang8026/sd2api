@@ -779,7 +779,7 @@ function renderTasks(items) {
     const alias = task.model !== task.upstream_model ? `<span class="cell-sub">请求别名 ${esc(task.model)}</span>` : "";
     const error = task.error_message ? `<span class="task-error-inline">${esc(task.error_code || "generation_failed")} · ${esc(task.error_message)}</span>` : "";
     return `<tr>
-      <td class="task-main"><span class="cell-title mono">${esc(task.id)}</span><span class="task-prompt">${esc(task.prompt || "无提示词")}</span>${error}</td>
+      <td class="task-main">${mediaThumb(task)}<span class="cell-title mono">${esc(task.id)}</span><span class="task-prompt">${esc(task.prompt || "无提示词")}</span>${error}</td>
       <td class="model-label"><strong>${esc(task.upstream_model || task.model)}</strong>${alias}<span class="cell-sub">${esc(String(task.api || "").toUpperCase())}</span></td>
       <td>${pill(task.status)}<span class="cell-sub">${Number(task.progress || 0)}%</span></td>
       <td><strong>${task.seconds}s</strong><span class="cell-sub">${esc(task.resolution || "720p")}</span></td>
@@ -787,7 +787,9 @@ function renderTasks(items) {
       <td><span class="cell-title">${esc(task.account_email || "—")}</span><span class="cell-sub mono">${esc(task.advertiser_id || "—")}</span></td>
       <td><span class="cell-title">${formatTime(task.updated_at)}</span><span class="cell-sub">创建于 ${formatTime(task.created_at)}</span></td>
       <td><div class="row-actions">
+        ${mediaButton(task, "preview")}
         ${task.downloadable ? `<button class="button primary" data-task-action="download" data-task-id="${esc(task.id)}" type="button">下载</button>` : ""}
+        ${mediaButton(task, "copy-link")}
         <button class="button ghost" data-task-action="copy" data-task-id="${esc(task.id)}" type="button">复制 ID</button>
         <button class="button danger" data-task-action="delete" data-task-id="${esc(task.id)}" type="button">删除记录</button>
       </div></td>
@@ -913,6 +915,7 @@ function renderFocusTask() {
     <div class="task-focus-head">${pill(status)}<span class="mono task-id">${esc(task.id)}</span></div>
     <div class="task-progress"><span style="width:${progress}%"></span></div>
     <div class="task-meta"><div><span>模型</span><strong>${esc(task.model || "seedance-2.0")}</strong></div><div><span>时长</span><strong>${esc(task.seconds || task.duration || 5)} 秒</strong></div></div>
+    ${mediaFocusPreview(task.id)}
     ${task.error ? `<div class="task-error">${esc(task.error.code || "generation_failed")}<br>${esc(task.error.message || "生成失败")}</div>` : ""}
     <div class="row-actions">
       ${status === "succeeded" ? `<button class="button primary" data-focus-action="download" type="button">下载视频</button>` : ""}
@@ -1041,12 +1044,8 @@ async function deleteTask(id) {
 }
 
 async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast("已复制", text);
-  } catch {
-    toast("复制失败", "请手动选择任务 ID", "error");
-  }
+  if (await copyToClipboard(text)) toast("已复制", text);
+  else toast("复制失败", "请手动选择任务 ID", "error");
 }
 
 function openMobileMenu() {

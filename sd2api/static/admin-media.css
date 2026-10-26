@@ -1,0 +1,26 @@
+/* Cover thumbnails, video preview dialog and copy helpers (see admin-media.js). */
+.media-thumb { position: relative; display: grid; flex: none; width: 54px; height: 96px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #0a0f16; padding: 0; color: var(--muted); font-size: 10px; }
+.media-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.media-thumb img + .media-thumb-label { display: none; }
+.media-thumb.playable { cursor: pointer; transition: border-color .16s ease; }
+.media-thumb.playable:hover { border-color: var(--brand); }
+.media-thumb-play { position: relative; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: rgba(8, 11, 16, .64); color: #fff; font-size: 9px; transition: background .16s ease, color .16s ease, transform .16s ease; }
+.media-thumb.playable:hover .media-thumb-play { background: var(--brand); color: #06150f; transform: scale(1.08); }
+.task-main .media-thumb { float: left; margin-right: 12px; }
+.video-table .task-main { max-width: 396px; }
+
+.media-focus { display: flex; align-items: center; gap: 13px; }
+.media-focus .media-thumb { width: 72px; height: 128px; }
+
+.media-dialog { width: min(460px, calc(100vw - 28px)); padding: 0; }
+.media-dialog-body { padding: 23px; }
+.media-dialog .dialog-heading { margin-bottom: 14px; }
+.media-dialog-title { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.media-player { position: relative; overflow: hidden; border-radius: 12px; background: #000; }
+.media-player video { display: block; width: 100%; height: min(68vh, 720px); background: #000; object-fit: contain; }
+.media-player-status { position: absolute; top: 50%; right: 14px; left: 14px; transform: translateY(-50%); border: 1px solid var(--line); border-radius: 9px; background: rgba(8, 11, 16, .82); padding: 10px 12px; color: #dbe2ea; font-size: 12px; text-align: center; pointer-events: none; }
+.media-player-status.error { border-color: rgba(255, 123, 135, .3); color: #ffabb3; }
+.media-player-status[hidden] { display: none; }
+.media-dialog-prompt { display: -webkit-box; overflow: hidden; margin: 12px 0 0; color: var(--muted); font-size: 11px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.media-dialog-prompt:empty { display: none; }
+.media-copy-field { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
