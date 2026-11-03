@@ -287,7 +287,12 @@
               <label class="field api-key-input"><span>Key（留空则安全生成）</span><input name="key" type="password" minlength="16" autocomplete="new-password" placeholder="留空自动生成，或输入至少 16 位的自定义 Key"></label>
               <div class="button-group api-key-buttons"><button class="button ghost" type="submit">添加自定义 Key</button><button id="apiKeyGenerate" class="button primary" type="button">生成并添加 Key</button></div>
             </form>
-            <p class="muted api-key-hint">自动生成的完整 Key 只返回一次，并直接复制到剪贴板，不会显示在页面或写入日志。</p>
+            <p class="muted api-key-hint">自动生成的完整 Key 只在创建后显示这一次，点「我已保存」或刷新页面后无法再次查看，也不会写入日志。</p>
+            <div id="apiKeyReveal" class="api-key-row api-key-reveal hidden" role="status">
+              <div><strong>新 Key 已创建，只显示这一次</strong><span id="apiKeyRevealName" class="cell-sub mono"></span></div>
+              <input id="apiKeyRevealValue" class="mono" type="text" readonly spellcheck="false" aria-label="新创建的完整 API Key">
+              <div class="button-group"><button id="apiKeyRevealCopy" class="button primary" type="button">复制</button><button id="apiKeyRevealDone" class="button ghost" type="button">我已保存</button></div>
+            </div>
             <div id="apiKeys" class="api-key-list"></div>
           </section>
           <form id="settingsForm">

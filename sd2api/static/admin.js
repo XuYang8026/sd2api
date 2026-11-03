@@ -388,26 +388,45 @@ async function refreshSettings() {
 
 async function addApiKey(event) {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  // currentTarget is reset to null once the handler awaits, so keep the form element.
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
   const customKey = String(form.get("key") || "").trim();
   const body = { name: String(form.get("name") || "API Key").trim() };
   if (customKey) body.key = customKey;
+  let result;
   try {
-    const result = await api("/admin/api-keys", { method: "POST", body: JSON.stringify(body) });
-    let copied = false;
-    if (!customKey && navigator.clipboard?.writeText) {
-      try { await navigator.clipboard.writeText(result.key); copied = true; } catch (_) {}
-    }
-    if (!customKey && !copied) {
-      await api(`/admin/api-keys/${encodeURIComponent(result.id)}`, { method: "DELETE" });
-      throw new Error("浏览器未允许写入剪贴板，本次生成已自动撤销；请授权剪贴板后重试，或输入自定义 Key");
-    }
-    event.currentTarget.reset();
-    event.currentTarget.elements.name.value = "API Key";
-    await refreshApiKeys();
-    toast("API Key 已添加", customKey ? `已保存为 ${result.masked_key}` : "完整 Key 已复制到剪贴板，请立即保存");
+    result = await api("/admin/api-keys", { method: "POST", body: JSON.stringify(body) });
   } catch (error) {
     toast("添加失败", error.message, "error");
+    return;
+  }
+  formElement.reset();
+  formElement.elements.name.value = "API Key";
+  if (!customKey) showApiKeyReveal(result);
+  toast("API Key 已添加", customKey ? `已保存为 ${result.masked_key}` : "完整 Key 只显示这一次，请复制保存");
+  refreshApiKeys().catch((error) => toast("Key 列表刷新失败", error.message, "error"));
+}
+
+function showApiKeyReveal(result) {
+  $("apiKeyRevealName").textContent = `${result.name} · ${result.masked_key}`;
+  $("apiKeyRevealValue").value = result.key;
+  $("apiKeyReveal").classList.remove("hidden");
+  $("apiKeyRevealValue").focus();
+}
+
+function hideApiKeyReveal() {
+  $("apiKeyRevealValue").value = "";
+  $("apiKeyReveal").classList.add("hidden");
+}
+
+async function copyApiKeyReveal() {
+  const field = $("apiKeyRevealValue");
+  if (await copyToClipboard(field.value)) {
+    toast("已复制", "完整 Key 已复制到剪贴板");
+  } else {
+    field.focus();
+    toast("无法自动复制", "Key 已选中，请按 Cmd/Ctrl + C 手动复制", "error");
   }
 }
 
@@ -1093,6 +1112,9 @@ function bindEvents() {
     $("apiKeyForm").elements.key.value = "";
     $("apiKeyForm").requestSubmit();
   });
+  $("apiKeyRevealValue").addEventListener("focus", (event) => event.target.select());
+  $("apiKeyRevealCopy").addEventListener("click", copyApiKeyReveal);
+  $("apiKeyRevealDone").addEventListener("click", hideApiKeyReveal);
   $("apiKeys").addEventListener("click", (event) => {
     const button = event.target.closest("[data-api-key-delete]");
     if (button) deleteApiKey(button.dataset.apiKeyDelete);
