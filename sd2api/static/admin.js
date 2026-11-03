@@ -791,14 +791,15 @@ function renderTasks(items) {
   $("videoCount").textContent = `共 ${state.videoTotal} 条`;
   const body = $("tasks");
   if (!items.length) {
+    state.tasksHtml = "";
     body.innerHTML = '<tr><td colspan="8" class="table-empty">没有匹配的视频任务。</td></tr>';
     return;
   }
-  body.innerHTML = items.map((task) => {
+  const html = items.map((task) => {
     const alias = task.model !== task.upstream_model ? `<span class="cell-sub">请求别名 ${esc(task.model)}</span>` : "";
     const error = task.error_message ? `<span class="task-error-inline">${esc(task.error_code || "generation_failed")} · ${esc(task.error_message)}</span>` : "";
     return `<tr>
-      <td class="task-main">${mediaThumb(task)}<span class="cell-title mono">${esc(task.id)}</span><span class="task-prompt">${esc(task.prompt || "无提示词")}</span>${error}</td>
+      <td class="task-main">${mediaThumb(task)}<span class="cell-title mono">${esc(task.id)}</span>${mediaPrompt(task)}${error}</td>
       <td class="model-label"><strong>${esc(task.upstream_model || task.model)}</strong>${alias}<span class="cell-sub">${esc(String(task.api || "").toUpperCase())}</span></td>
       <td>${pill(task.status)}<span class="cell-sub">${Number(task.progress || 0)}%</span></td>
       <td><strong>${task.seconds}s</strong><span class="cell-sub">${esc(task.resolution || "720p")}</span></td>
@@ -814,6 +815,10 @@ function renderTasks(items) {
       </div></td>
     </tr>`;
   }).join("");
+  // Auto refresh runs every few seconds; replacing identical rows would wipe text selections and reload covers.
+  if (html === state.tasksHtml) return;
+  state.tasksHtml = html;
+  body.innerHTML = html;
 }
 
 async function refreshVideos() {

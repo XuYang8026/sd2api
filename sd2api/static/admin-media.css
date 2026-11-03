@@ -6,8 +6,8 @@
 .media-thumb.playable:hover { border-color: var(--brand); }
 .media-thumb-play { position: relative; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: rgba(8, 11, 16, .64); color: #fff; font-size: 9px; transition: background .16s ease, color .16s ease, transform .16s ease; }
 .media-thumb.playable:hover .media-thumb-play { background: var(--brand); color: #06150f; transform: scale(1.08); }
-.task-main .media-thumb { float: left; margin-right: 12px; }
-.video-table .task-main { max-width: 396px; }
+.video-table .task-main { position: relative; height: 120px; max-width: 396px; padding-left: 76px; }
+.task-main .media-thumb { position: absolute; top: 12px; left: 10px; }
 
 .media-focus { display: flex; align-items: center; gap: 13px; }
 .media-focus .media-thumb { width: 72px; height: 128px; }
@@ -21,6 +21,11 @@
 .media-player-status { position: absolute; top: 50%; right: 14px; left: 14px; transform: translateY(-50%); border: 1px solid var(--line); border-radius: 9px; background: rgba(8, 11, 16, .82); padding: 10px 12px; color: #dbe2ea; font-size: 12px; text-align: center; pointer-events: none; }
 .media-player-status.error { border-color: rgba(255, 123, 135, .3); color: #ffabb3; }
 .media-player-status[hidden] { display: none; }
-.media-dialog-prompt { display: -webkit-box; overflow: hidden; margin: 12px 0 0; color: var(--muted); font-size: 11px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.media-dialog-prompt { max-height: 132px; overflow: auto; margin: 12px 0 0; color: var(--muted); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .media-dialog-prompt:empty { display: none; }
 .media-copy-field { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.task-prompt[data-prompt-action] { cursor: pointer; }
+.task-prompt.expanded { display: block; overflow: visible; color: #b6c0cd; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-line-clamp: unset; }
+.task-prompt-actions { display: flex; gap: 12px; margin-top: 3px; }
+.task-prompt-actions .text-button { padding: 0; font-size: 10px; }

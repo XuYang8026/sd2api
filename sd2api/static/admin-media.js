@@ -3,6 +3,8 @@
 
 const MEDIA_BUTTON_LABELS = { preview: "预览", "copy-link": "复制链接" };
 let mediaPreviewTask = null;
+// Survives the periodic table re-render, so an expanded prompt stays open.
+const expandedPrompts = new Set();
 
 function mediaTask(id) {
   return state.tasks.find((task) => task.id === id) || (mediaPreviewTask?.id === id ? mediaPreviewTask : null);
@@ -30,6 +32,39 @@ function mediaFocusPreview(id) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task?.share_url) return "";
   return `<div class="media-focus">${mediaThumb(task)}<div class="row-actions">${mediaButton(task, "preview")}${mediaButton(task, "copy-link")}</div></div>`;
+}
+
+// Expansion is applied after rendering instead of being baked into the row HTML, so
+// toggling a prompt does not make the next auto refresh re-render (and deselect) the table.
+function mediaPrompt(task) {
+  if (!task.prompt) return '<span class="task-prompt">无提示词</span>';
+  const id = esc(task.id);
+  return `<span class="task-prompt" data-prompt-action="toggle" data-task-id="${id}">${esc(task.prompt)}</span>`
+    + `<span class="task-prompt-actions"><button class="text-button" data-prompt-action="toggle" data-task-id="${id}" type="button" hidden>展开全文</button>`
+    + `<button class="text-button" data-prompt-action="copy" data-task-id="${id}" type="button">复制提示词</button></span>`;
+}
+
+// Re-applies expansion and only offers "展开全文" when the two-line clamp actually hides text.
+function syncPrompts(root) {
+  root.querySelectorAll(".task-prompt[data-prompt-action]").forEach((prompt) => {
+    const expanded = expandedPrompts.has(prompt.dataset.taskId);
+    prompt.classList.toggle("expanded", expanded);
+    const toggle = prompt.nextElementSibling?.querySelector('[data-prompt-action="toggle"]');
+    if (!toggle) return;
+    toggle.textContent = expanded ? "收起" : "展开全文";
+    toggle.hidden = !expanded && prompt.scrollHeight <= prompt.clientHeight + 1;
+  });
+}
+
+function togglePrompt(id) {
+  if (expandedPrompts.has(id)) expandedPrompts.delete(id);
+  else expandedPrompts.add(id);
+  syncPrompts(document);
+}
+
+async function copyPrompt(task) {
+  if (await copyToClipboard(task.prompt)) toast("提示词已复制", `共 ${task.prompt.length} 个字符`);
+  else window.prompt("无法自动复制，请手动复制提示词", task.prompt);
 }
 
 async function copyToClipboard(text) {
@@ -143,3 +178,17 @@ document.addEventListener("click", (event) => {
 document.addEventListener("error", (event) => {
   if (event.target instanceof HTMLImageElement && event.target.parentElement?.classList.contains("media-thumb")) event.target.remove();
 }, true);
+
+document.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-prompt-action]");
+  if (!trigger) return;
+  const task = mediaTask(trigger.dataset.taskId);
+  if (!task?.prompt) return;
+  if (trigger.dataset.promptAction === "copy") copyPrompt(task);
+  // A drag that selects prompt text also ends in a click; leave the selection alone.
+  if (trigger.dataset.promptAction === "toggle" && !(trigger.classList.contains("task-prompt") && getSelection().toString())) togglePrompt(task.id);
+});
+
+const mediaTaskTable = $("tasks");
+if (mediaTaskTable) new MutationObserver(() => syncPrompts(mediaTaskTable)).observe(mediaTaskTable, { childList: true });
+window.addEventListener("resize", debounce(() => mediaTaskTable && syncPrompts(mediaTaskTable)));
