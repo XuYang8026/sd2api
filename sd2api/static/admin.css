@@ -466,6 +466,7 @@ tbody > tr:not(.detail-row):not(.subaccount-row):hover > td { background: rgba(2
 .api-key-reveal { margin-bottom: 8px; border-color: rgba(92, 221, 176, .45); background: var(--brand-soft); }
 
 .auth-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(5, 8, 12, .97); padding: 20px; }
+html.auth-pending .auth-screen { display: none; }
 .auth-card { width: min(430px, 100%); border: 1px solid var(--line); border-radius: 19px; background: var(--surface); padding: 29px; box-shadow: 0 32px 100px rgba(0, 0, 0, .45); }
 .auth-card h1 { margin-bottom: 10px; font-size: 25px; }
 .auth-card > .muted { margin-bottom: 24px; }

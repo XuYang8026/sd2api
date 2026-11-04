@@ -162,6 +162,7 @@ function setConnection(online, text) {
 }
 
 function showAuth(message = "") {
+  document.documentElement.classList.remove("auth-pending");
   $("auth").classList.remove("hidden");
   $("authError").textContent = message;
   setConnection(false, "等待连接");
@@ -309,10 +310,11 @@ async function connect(event) {
     renderConfig(state.config);
     sessionStorage.setItem("sd2api_admin_key", state.key);
     $("auth").classList.add("hidden");
+    document.documentElement.classList.remove("auth-pending");
     setConnection(true);
     await refreshCurrent(false);
   } catch (error) {
-    $("authError").textContent = error.message;
+    showAuth(error.message);
   }
 }
 
