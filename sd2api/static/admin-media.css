@@ -2,6 +2,8 @@
 .media-thumb { position: relative; display: grid; flex: none; width: 54px; height: 96px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #0a0f16; padding: 0; color: var(--muted); font-size: 10px; }
 .media-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .media-thumb img + .media-thumb-label { display: none; }
+/* Break status labels such as 排队/生成中 at the slash, not mid-word. */
+.media-thumb-label { padding: 0 4px; text-align: center; word-break: keep-all; overflow-wrap: anywhere; }
 .media-thumb.playable { cursor: pointer; transition: border-color .16s ease; }
 .media-thumb.playable:hover { border-color: var(--brand); }
 .media-thumb-play { position: relative; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: rgba(8, 11, 16, .64); color: #fff; font-size: 9px; transition: background .16s ease, color .16s ease, transform .16s ease; }

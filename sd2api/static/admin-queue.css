@@ -1,0 +1,6 @@
+/* Queue status for pending tasks and per-mode queue estimates (see admin-queue.js). */
+.queue-busy { color: var(--warn) !important; }
+.mode-wait { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.mode-wait:empty { display: none; }
+.queue-line { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: -4px 0 8px; color: var(--muted); font-size: 10px; }
+.queue-focus { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: -4px; color: var(--muted); font-size: 11px; }

@@ -8,9 +8,11 @@
   <!-- A stored key is re-verified on load; keep the login overlay hidden meanwhile so it doesn't flash on refresh. -->
   <script>try { if (sessionStorage.getItem("sd2api_admin_key")) document.documentElement.classList.add("auth-pending"); } catch { /* storage unavailable */ }</script>
   <link rel="stylesheet" href="/admin/assets/admin.css?v=10">
-  <script defer src="/admin/assets/admin.js?v=10"></script>
-  <link rel="stylesheet" href="/admin/assets/admin-media.css?v=1">
+  <script defer src="/admin/assets/admin.js?v=11"></script>
+  <link rel="stylesheet" href="/admin/assets/admin-media.css?v=2">
   <script defer src="/admin/assets/admin-media.js?v=1"></script>
+  <link rel="stylesheet" href="/admin/assets/admin-queue.css?v=1">
+  <script defer src="/admin/assets/admin-queue.js?v=1"></script>
 </head>
 <body>
   <div id="auth" class="auth-screen">
@@ -261,7 +263,7 @@
         <section class="panel filter-panel">
           <div class="filter-row video-filter-row">
             <label class="field search-field"><span>搜索视频</span><input id="videoSearch" type="search" placeholder="任务 ID、提示词、模型、API Key 或账号"></label>
-            <label class="field"><span>状态</span><select id="videoStatus"><option value="all">全部状态</option><option value="queued">排队中</option><option value="running">生成中</option><option value="succeeded">已完成</option><option value="failed">失败</option></select></label>
+            <label class="field"><span>状态</span><select id="videoStatus"><option value="all">全部状态</option><option value="queued">排队中</option><option value="running">排队/生成中</option><option value="succeeded">已完成</option><option value="failed">失败</option></select></label>
             <label class="toggle-field"><input id="videoAutoRefresh" type="checkbox" checked><span>自动刷新生成中任务</span></label>
           </div>
         </section>

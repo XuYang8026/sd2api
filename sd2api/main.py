@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 
 from .config import CONFIG_PATH, RuntimeConfig, save_runtime_config, settings
-from . import credits, media
+from . import credits, media, queue_wait
 from .browser_client import BrowserTikTokClient
 from .browser_pool import BrowserPoolClient
 from .models import (
@@ -60,6 +60,8 @@ elif settings.sd2api_mode.lower() == "browser":
     client = BrowserTikTokClient(settings)
 else:
     client = TikTokClient(settings)
+# Admin-console queue estimates; lambdas so tests can swap the module-level client/store.
+queue_waits = queue_wait.QueueWaitService(get_client=lambda: client, get_store=lambda: store)
 
 
 def audit_event(
@@ -547,6 +549,18 @@ async def admin_media_script() -> FileResponse:
     )
 
 
+@app.get("/admin/assets/admin-queue.css", include_in_schema=False)
+async def admin_queue_styles() -> FileResponse:
+    return FileResponse(admin_static_dir / "admin-queue.css", media_type="text/css")
+
+
+@app.get("/admin/assets/admin-queue.js", include_in_schema=False)
+async def admin_queue_script() -> FileResponse:
+    return FileResponse(
+        admin_static_dir / "admin-queue.js", media_type="application/javascript"
+    )
+
+
 def parse_ttoh_datetime(value: str | None) -> int | None:
     if not value:
         return None
@@ -948,6 +962,11 @@ async def pool_status() -> dict[str, Any]:
     }
 
 
+@app.get("/admin/queue-wait", dependencies=[Depends(require_admin_key)])
+async def admin_queue_wait() -> dict[str, Any]:
+    return await queue_waits.model_estimates()
+
+
 def admin_task(record: TaskRecord) -> dict[str, Any]:
     account = store.get_account(record.account_id) if record.account_id else None
     return {
@@ -1088,8 +1107,10 @@ async def list_admin_tasks(
             status=selected_status,
             search=search,
         )
+    data = [admin_task(record) for record in records]
+    await queue_waits.annotate(records, data)
     return {
-        "data": [admin_task(record) for record in records],
+        "data": data,
         "summary": store.task_counts(),
         "pagination": {
             "page": page,
@@ -1296,6 +1317,7 @@ async def create_seedance_video(
             "duration": record.seconds,
         },
     )
+    queue_waits.schedule_submission(record, mode)
     return seedance_task(record)
 
 
@@ -1603,6 +1625,9 @@ async def create_openai_video(request: Request) -> dict[str, Any]:
             "model": upstream_model_name(record.model),
             "duration": record.seconds,
         },
+    )
+    queue_waits.schedule_submission(
+        record, "reference" if reference_media else "image" if input_image else "text"
     )
     return openai_video(record)
 

@@ -141,8 +141,8 @@ const stateMap = {
   waiting_for_login: ["等待登录结果", "info"], logging_in: ["登录中", "info"],
   login_failed: ["登录失败", "bad"], not_configured: ["未配置凭据", "bad"],
   not_logged_in: ["未登录", "wait"], not_started: ["尚未启动", "wait"],
-  pending: ["等待登录", "wait"], queued: ["排队中", "wait"], running: ["生成中", "info"],
-  in_progress: ["生成中", "info"], succeeded: ["已完成", "ok"], completed: ["已完成", "ok"],
+  pending: ["等待登录", "wait"], queued: ["排队中", "wait"], running: ["排队/生成中", "info"],
+  in_progress: ["排队/生成中", "info"], succeeded: ["已完成", "ok"], completed: ["已完成", "ok"],
   keepalive: ["保活中", "info"], failed: ["失败", "bad"],
 };
 
@@ -511,6 +511,7 @@ function renderRecentTasks(items) {
     <article class="recent-task">
       <div class="recent-task-top"><span class="mono">${esc(task.id)}</span>${pill(task.status)}</div>
       <p>${esc(task.prompt || "无提示词")}</p>
+      ${queueRecentLine(task)}
       <footer><span>${esc(task.upstream_model || task.model)}</span><span>${task.seconds}s · ${formatTime(task.updated_at, true)}</span></footer>
     </article>`).join("");
 }
@@ -525,6 +526,7 @@ async function refreshGenerate() {
   state.tasks = taskData.data || [];
   renderPool(pool, state.accounts);
   renderRecentTasks(state.tasks);
+  refreshQueueWait();
   if (state.focusTask?.id) {
     try {
       const task = await api(`/v1/videos/${encodeURIComponent(state.focusTask.id)}`);
@@ -814,7 +816,7 @@ function renderTasks(items) {
     return `<tr>
       <td class="task-main">${mediaThumb(task)}<span class="cell-title mono">${esc(task.id)}</span>${mediaPrompt(task)}${error}</td>
       <td class="model-label"><strong>${esc(task.upstream_model || task.model)}</strong>${alias}<span class="cell-sub">${esc(String(task.api || "").toUpperCase())}</span></td>
-      <td>${pill(task.status)}<span class="cell-sub">${Number(task.progress || 0)}%</span></td>
+      <td>${pill(task.status)}${queueStatusCell(task) || `<span class="cell-sub">${Number(task.progress || 0)}%</span>`}</td>
       <td><strong>${task.seconds}s</strong><span class="cell-sub">${esc(task.resolution || "720p")}</span></td>
       <td><span class="cell-title mono">${esc(task.api_key || "—")}</span></td>
       <td><span class="cell-title">${esc(task.account_email || "—")}</span><span class="cell-sub mono">${esc(task.advertiser_id || "—")}</span></td>
@@ -945,12 +947,13 @@ function renderFocusTask() {
   const task = state.focusTask;
   if (!task) return;
   const status = normalizeStatus(task.status);
-  const progress = status === "succeeded" || status === "failed" ? 100 : status === "running" ? Math.max(50, Number(task.progress || 0)) : 8;
+  const progress = status === "succeeded" || status === "failed" ? 100 : queueProgress(task.id) ?? (status === "running" ? Math.max(50, Number(task.progress || 0)) : 8);
   $("generationEmpty").classList.add("hidden");
   $("generationResult").classList.remove("hidden");
   $("generationResult").innerHTML = `
     <div class="task-focus-head">${pill(status)}<span class="mono task-id">${esc(task.id)}</span></div>
     <div class="task-progress"><span style="width:${progress}%"></span></div>
+    ${status === "succeeded" || status === "failed" ? "" : queueFocusLine(task.id)}
     <div class="task-meta"><div><span>模型</span><strong>${esc(task.model || "seedance-2.0")}</strong></div><div><span>时长</span><strong>${esc(task.seconds || task.duration || 5)} 秒</strong></div></div>
     ${mediaFocusPreview(task.id)}
     ${task.error ? `<div class="task-error">${esc(task.error.code || "generation_failed")}<br>${esc(task.error.message || "生成失败")}</div>` : ""}
