@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 
 from .config import CONFIG_PATH, RuntimeConfig, save_runtime_config, settings
-from . import media
+from . import credits, media
 from .browser_client import BrowserTikTokClient
 from .browser_pool import BrowserPoolClient
 from .models import (
@@ -942,7 +942,10 @@ async def update_admin_runtime_config(body: RuntimeConfig) -> dict[str, Any]:
 
 @app.get("/admin/pool/status", dependencies=[Depends(require_admin_key)])
 async def pool_status() -> dict[str, Any]:
-    return await require_pool().status()
+    return {
+        **await require_pool().status(),
+        "credits_reset_at": credits.next_weekly_reset(),
+    }
 
 
 def admin_task(record: TaskRecord) -> dict[str, Any]:

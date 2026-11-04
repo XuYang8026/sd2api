@@ -6,6 +6,10 @@ const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
 const formatUnix = (value) => value
   ? new Date(Number(value) * 1000).toLocaleString("zh-CN", { hour12: false })
   : "—";
+const formatCreditsReset = (value) => value
+  ? `${new Date(Number(value) * 1000).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false })} 重置`
+  : "";
+const CREDITS_RESET_HINT = "TikTok 每周一 00:00 UTC 开始批量重置 Credits，通常 2.5 小时内到账，未用完的不结转";
 
 const state = {
   key: sessionStorage.getItem("sd2api_admin_key") || "",
@@ -474,6 +478,12 @@ function renderPool(pool, accounts = state.accounts) {
   state.pool = pool;
   const running = Number(pool.running_jobs || pool.queued_jobs || 0);
   $("gCredits").textContent = enabledCreditTotal(accounts).toLocaleString();
+  const creditsHint = $("gCreditsHint");
+  if (creditsHint) {
+    const reset = formatCreditsReset(pool.credits_reset_at);
+    creditsHint.textContent = reset ? `已加入调度子账号合计 · ${reset}` : "已加入调度子账号合计";
+    creditsHint.title = reset ? CREDITS_RESET_HINT : "";
+  }
   $("gOnline").textContent = pool.logged_in || 0;
   $("gParallel").textContent = pool.max_parallel || 0;
   $("gRunning").textContent = running;
@@ -533,6 +543,7 @@ function backendLabel(account) {
 function renderSubaccounts(account) {
   const items = account.subaccounts || [];
   if (!items.length) return '<div class="table-empty">尚未发现子账号。登录后点击“刷新子账号”获取权限与 Credits。</div>';
+  const creditsReset = formatCreditsReset(state.pool?.credits_reset_at);
   return `<div class="subaccounts"><div class="subaccounts-head"><span>子账号</span><span>Seedance 权限</span><span>余额</span><span>加入调度</span><span>说明</span></div>${items.map((sub) => {
     const canSchedule = sub.seedance_access === true;
     const switchLabel = sub.quota_blocked ? "额度熔断中" : sub.enabled ? "已加入调度" : canSchedule ? "未加入调度" : "不可加入调度";
@@ -548,7 +559,7 @@ function renderSubaccounts(account) {
     <div class="sub-row">
       <div class="sub-name"><div><strong>${esc(sub.name)}</strong><span class="cell-sub mono">${esc(sub.advertiser_id)} · ${esc(sub.account_type)}</span></div></div>
       <div>${sub.seedance_access === true ? '<span class="pill ok">SD2 可用</span>' : sub.seedance_access === false ? '<span class="pill bad">无 SD2 权限</span>' : '<span class="pill wait">未检查</span>'}</div>
-      <div><strong>${sub.credits ?? "—"}</strong><span class="cell-sub">Credits</span></div>
+      <div><strong>${sub.credits ?? "—"}</strong>${creditsReset ? `<span class="cell-sub" title="${esc(CREDITS_RESET_HINT)}">${esc(creditsReset)}</span>` : '<span class="cell-sub">Credits</span>'}</div>
       <label class="schedule-control ${schedulable ? "" : "disabled"}">
         <span class="switch">
           <input type="checkbox" data-sub-toggle data-account-id="${esc(account.id)}" data-advertiser-id="${esc(sub.advertiser_id)}" aria-label="${esc(`将 ${sub.name} 加入生成调度`)}" ${sub.enabled ? "checked" : ""} ${schedulable ? "" : "disabled"}>
