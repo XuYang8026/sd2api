@@ -34,3 +34,15 @@ Return `{"object":"list","data":[...]}`. Each item has `id`, `object: "model"`, 
 ## Rollback
 
 Restore the prior image reference and recreate only the sd2api service using the unchanged data volumes. Restore tracked source with a scoped reverse feature patch if necessary; do not reset or delete user data.
+
+## Execution results — 2026-11-07
+
+- Feature commit: `c29310e` on local `custom` and USA VPS `/opt/sd2api`; no GitHub push.
+- Clean baseline: 141 passed after setting a dummy `SD2API_API_KEY` required by an existing queue test.
+- Red phase: all 8 new tests failed with the expected 404 responses.
+- Green phase: 8 focused tests and 149 total tests passed. Full tests also passed inside the new Linux deployment image and after syncing the original local checkout. Existing dependency deprecation warnings remain.
+- Only source, tests and documentation changed. Production has no queued/running tasks at replacement time, and all existing data volumes and credentials were retained.
+- Deployed image: `sd2api-fork:models-20261107`, also tagged `sd2api-fork:latest` to preserve existing Compose configuration. Rollback image: `sd2api-fork:rollback-before-models-20261107`.
+- ArcReel saved-provider test returned HTTP 200, `success=true`, `model_count=5`; discovery returned all five models.
+- From the ArcReel container: missing/invalid credentials returned 401; saved credentials returned 200 with five entries. No generation request was made.
+- Discovery does not fix Fast/Mini input adaptation or the existing Ark SDK nullable-parameter mismatch. ArcReel heuristically selects `ark-seedance` for newly discovered Seedance IDs; keep the already configured ordinary model on `openai-video` until the separate compatibility work is done. The `sora-2` alias must not be interpreted or priced as genuine Sora.
