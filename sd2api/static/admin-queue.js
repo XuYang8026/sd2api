@@ -76,6 +76,7 @@ function renderModeWaits() {
 }
 
 async function refreshQueueWait() {
+  queueState.loadedAt = Date.now();
   try {
     const data = await api("/admin/queue-wait");
     queueState.models = data.models || {};
@@ -84,6 +85,130 @@ async function refreshQueueWait() {
     queueState.models = {};
   }
   renderModeWaits();
+  renderQueueBoard();
 }
 
 $("generationModel")?.addEventListener("change", renderModeWaits);
+
+// Topbar summary of the current wait for the models worth choosing between: a pill with the
+// shortest and longest wait that opens a per-model list. Same data as the mode buttons.
+const QUEUE_BOARD = [
+  { model: "seedance-2.0", label: "2.0", name: "Seedance 2.0", mode: "text" },
+  { model: "seedance-2.0", label: "2.0", name: "Seedance 2.0", mode: "image" },
+  { model: "seedance-2.0", label: "2.0", name: "Seedance 2.0", mode: "reference" },
+  { model: "seedance-2.0-fast", label: "Fast", name: "Seedance 2.0 Fast", mode: "reference" },
+  { model: "seedance-2.0-mini", label: "Mini", name: "Seedance 2.0 Mini", mode: "reference" },
+];
+const QUEUE_MODE_NAMES = { text: ["T2V", "文生视频"], image: ["I2V", "图生视频"], reference: ["R2V", "参考生视频"] };
+const QUEUE_REFRESH_MS = 90 * 1000;
+const queueClock = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.6V8l2.3 1.5"/></svg>';
+
+// Short form for the pill and list: "<1分", "29分", "5.3h", "12h".
+function formatWaitShort(seconds) {
+  const minutes = Math.round(Math.max(0, Number(seconds) || 0) / 60);
+  if (minutes < 1) return "<1分";
+  if (minutes < 60) return `${minutes}分`;
+  const hours = minutes / 60;
+  return hours < 10 ? `${Number(hours.toFixed(1))}h` : `${Math.round(hours)}h`;
+}
+
+// Colour by the rounded minutes shown, so "10分" is never amber: ≤10 min, ≤1 h, longer.
+function waitLevel(seconds) {
+  const minutes = Math.round(Math.max(0, Number(seconds) || 0) / 60);
+  return minutes <= 10 ? "q-ok" : minutes <= 60 ? "q-warn" : "q-bad";
+}
+
+function queueBoardRows() {
+  return QUEUE_BOARD.map((entry) => ({ ...entry, wait: queueState.models[entry.model]?.[entry.mode] }));
+}
+
+function queueBoardRoot() {
+  let root = $("queueBoard");
+  if (root) return root;
+  const actions = document.querySelector(".topbar-actions");
+  if (!actions) return null;
+  root = document.createElement("div");
+  root.id = "queueBoard";
+  root.className = "queue-board hidden";
+  root.innerHTML = `<button id="queueBoardToggle" class="queue-pill" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="queueBoardPanel"></button><div id="queueBoardPanel" class="queue-panel hidden"></div>`;
+  actions.prepend(root);
+  return root;
+}
+
+const waitValueHtml = (seconds) => `<b class="${waitLevel(seconds)}">${esc(formatWaitShort(seconds))}</b>`;
+
+function renderQueueBoard() {
+  const root = queueBoardRoot();
+  if (!root) return;
+  const rows = queueBoardRows();
+  const known = rows.filter((row) => row.wait);
+  root.classList.toggle("hidden", !known.length);
+  if (!known.length) {
+    setQueueBoardOpen(false);
+    return;
+  }
+  const seconds = known.map((row) => row.wait.seconds);
+  const low = Math.min(...seconds);
+  const high = Math.max(...seconds);
+  const range = formatWaitShort(low) === formatWaitShort(high)
+    ? waitValueHtml(low)
+    : `${waitValueHtml(low)}<i>–</i>${waitValueHtml(high)}`;
+  const toggle = $("queueBoardToggle");
+  toggle.innerHTML = `${queueClock}<span class="queue-pill-label">排队</span><span class="queue-pill-range">${range}</span><svg class="queue-pill-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 3.75 5 6.25l2.5-2.5"/></svg>`;
+  toggle.setAttribute("aria-label", `TikTok 当前排队预估 ${formatWait(low)} 到 ${formatWait(high)}，点击查看各模型`);
+
+  const checkedAt = Math.max(...known.map((row) => Number(row.wait.checked_at) || 0));
+  $("queueBoardPanel").innerHTML = `
+    <p class="queue-panel-title">TikTok 当前排队预估</p>
+    <div class="queue-panel-rows">${rows.map((row, index) => {
+      const [mode, modeName] = QUEUE_MODE_NAMES[row.mode];
+      const groupStart = index === 0 || rows[index - 1].model !== row.model;
+      const title = `${row.name} · ${modeName} ${mode}${row.wait ? ` · 预计排队约 ${formatWait(row.wait.seconds)}` : " · 暂无预估"}`;
+      return `<div class="queue-row${groupStart && index ? " group-start" : ""}" title="${esc(title)}">
+        <span class="queue-row-model">${groupStart ? esc(row.label) : ""}</span>
+        <span class="queue-row-mode">${mode}</span>
+        <span class="queue-row-wait">${row.wait ? `${waitValueHtml(row.wait.seconds)}<span class="queue-dot ${waitLevel(row.wait.seconds)}"></span>` : '<b class="queue-none">—</b><span class="queue-dot"></span>'}</span>
+      </div>`;
+    }).join("")}</div>
+    <p class="queue-panel-foot">${checkedAt ? `${esc(formatTime(checkedAt, true))} 更新 · ` : ""}每 90 秒刷新</p>`;
+}
+
+function setQueueBoardOpen(open) {
+  const toggle = $("queueBoardToggle");
+  const panel = $("queueBoardPanel");
+  if (!toggle || !panel) return;
+  panel.classList.toggle("hidden", !open);
+  toggle.setAttribute("aria-expanded", String(open));
+}
+
+document.addEventListener("click", (event) => {
+  const root = $("queueBoard");
+  if (!root) return;
+  if (event.target.closest("#queueBoardToggle")) {
+    setQueueBoardOpen($("queueBoardPanel").classList.contains("hidden"));
+  } else if (!root.contains(event.target)) {
+    setQueueBoardOpen(false);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const panel = $("queueBoardPanel");
+  if (event.key !== "Escape" || !panel || panel.classList.contains("hidden")) return;
+  setQueueBoardOpen(false);
+  $("queueBoardToggle").focus();
+});
+
+// The generate page already refreshes the estimates with its own polling; every other page
+// refreshes them here, once signed in and while the tab is visible.
+const consoleSignedIn = () => Boolean(state.key) && $("auth").classList.contains("hidden");
+
+function refreshQueueBoardIfStale() {
+  if (!consoleSignedIn() || document.hidden) return;
+  if (Date.now() - (queueState.loadedAt || 0) < QUEUE_REFRESH_MS - 1000) return;
+  refreshQueueWait();
+}
+
+queueBoardRoot();
+setInterval(refreshQueueBoardIfStale, 15 * 1000);
+document.addEventListener("visibilitychange", refreshQueueBoardIfStale);
+new MutationObserver(refreshQueueBoardIfStale).observe($("auth"), { attributes: true, attributeFilter: ["class"] });
