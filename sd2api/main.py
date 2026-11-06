@@ -37,7 +37,14 @@ from .models import (
     VideoURLContent,
 )
 from .store import TaskRecord, TaskStore
-from .tiktok import TikTokClient, TikTokUpstreamError
+from .tiktok import (
+    FAST_ALIASES,
+    FAST_MODEL,
+    MINI_ALIASES,
+    MINI_MODEL,
+    TikTokClient,
+    TikTokUpstreamError,
+)
 from .uploads import StagedMedia, UploadManager
 from . import __version__
 
@@ -121,7 +128,8 @@ SEEDANCE_CREATE_DESCRIPTION = """
 
 | 参数 | 当前行为 |
 |---|---|
-| `duration` | **真实生效**；支持 4–15 秒的任意整数，当前页面显示预计 Credits 与秒数相同。 |
+| `duration` | **真实生效**；支持 4–15 秒的任意整数。TikTok 按秒扣 Credits：2.0 为 5/秒，2.0 Fast 3/秒，2.0 Mini 2/秒，2.5 为 10/秒。 |
+| `model` | `seedance-2.0`（别名 `sora-2`）、`seedance-2.5`（需账号白名单）、`seedance-2.0-fast`、`seedance-2.0-mini`。Fast/Mini **仅支持 R2V**，文生/图生会返回 400 `model_mode_unsupported`。 |
 | `ratio` / `resolution` | 仅兼容记录和回显，**不会发送给 TikTok**，不能改变实际画幅或分辨率。 |
 | `seed` / `camera_fixed` / `watermark` / `generate_audio` | 仅兼容接收，**不会发送给 TikTok**。 |
 
@@ -135,6 +143,7 @@ OPENAI_CREATE_DESCRIPTION = """
 - `seconds` 是唯一可控的视频规格参数：支持 **4–15 秒**的任意整数。
 - `size` 只为 OpenAI SDK 兼容而保存和回显，**不会发送给 TikTok**；当前实测输出固定为竖屏 `720 × 1280`。
 - `sora-2` 是本服务映射到 Dreamina Seedance 2.0 的兼容别名，并非 OpenAI Sora。
+- `seedance-2.0-fast` / `seedance-2.0-mini` 只能用于参考生视频（`reference_media` / `references`），速度更快、单价更低（3 / 2 Credits 每秒），各有独立的每日额度。
 - JSON 的 `input_reference` 或 multipart 的同名文件用于单首帧 I2V。
 - JSON 的 `references` 或 multipart 的 `reference_media` 用于 R2V；最多 9 张图片、3 个视频、3 段音频，且必须至少包含一张图片或一个视频。
 """
@@ -450,6 +459,10 @@ def upstream_model_name(model: str) -> str:
         "dreamina-seedance-2-5",
     }:
         return "seedance-2.5"
+    if normalized in MINI_ALIASES:
+        return MINI_MODEL
+    if normalized in FAST_ALIASES:
+        return FAST_MODEL
     return model
 
 

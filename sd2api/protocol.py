@@ -24,11 +24,13 @@ from .config import Settings
 from .models import UpstreamTask
 from .tiktok import (
     MODEL_PERMISSION_CODES,
+    REFERENCE_ONLY_MODELS,
     T2V_MODELS,
     TikTokUpstreamError,
     _deep_find,
     _first,
     is_tiktok_authentication_error,
+    reference_only_error,
     tiktok_authentication_error,
 )
 from .uploads import StagedMedia
@@ -67,8 +69,11 @@ I2V_MODELS = {
     for alias, internal in T2V_MODELS.items()
 }
 R2V_MODELS = {
-    alias: "2000008" if internal == "5000007" else "2000004"
-    for alias, internal in T2V_MODELS.items()
+    **{
+        alias: "2000008" if internal == "5000007" else "2000004"
+        for alias, internal in T2V_MODELS.items()
+    },
+    **REFERENCE_ONLY_MODELS,
 }
 
 
@@ -768,6 +773,8 @@ class ProtocolTikTokClient:
     @staticmethod
     def _model(model: str, models: dict[str, str]) -> str:
         internal = models.get(model.lower())
+        if not internal and model.lower() in REFERENCE_ONLY_MODELS:
+            raise reference_only_error(model)
         if not internal:
             raise TikTokUpstreamError(
                 f"Unsupported model {model!r}",

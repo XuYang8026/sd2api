@@ -319,7 +319,7 @@ flowchart LR
 
 | 功能 | Seedance 字段 | OpenAI 字段 | 说明 |
 |---|---|---|---|
-| **模型** | `model` | `model` | 支持 `seedance-2.0`（实测支持）与兼容别名 `sora-2` |
+| **模型** | `model` | `model` | `seedance-2.0`（兼容别名 `sora-2`）、`seedance-2.5`（需账号白名单）、`seedance-2.0-fast`、`seedance-2.0-mini`。Fast/Mini 仅支持 R2V（至少一张参考图或一个视频），按 3 / 2 Credits 每秒计费，排队通常更短 |
 | **时长** | `duration` | `seconds` | **生效**。支持 `4`～`15` 的任意整数（秒），TikTok 消耗点数等于生成秒数 |
 | **首帧图** | `role=first_frame` | `input_reference` | **生效**。单张首帧图片用于图生视频 |
 | **多素材参考** | `content` 数组 | `reference_media` / `references` | **生效**。支持最多 9 张图片、3 个视频、3 段音频混合输入 |

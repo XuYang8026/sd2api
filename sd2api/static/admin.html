@@ -7,8 +7,8 @@
   <title>sd2api 控制台</title>
   <!-- A stored key is re-verified on load; keep the login overlay hidden meanwhile so it doesn't flash on refresh. -->
   <script>try { if (sessionStorage.getItem("sd2api_admin_key")) document.documentElement.classList.add("auth-pending"); } catch { /* storage unavailable */ }</script>
-  <link rel="stylesheet" href="/admin/assets/admin.css?v=10">
-  <script defer src="/admin/assets/admin.js?v=11"></script>
+  <link rel="stylesheet" href="/admin/assets/admin.css?v=11">
+  <script defer src="/admin/assets/admin.js?v=12"></script>
   <link rel="stylesheet" href="/admin/assets/admin-media.css?v=2">
   <script defer src="/admin/assets/admin-media.js?v=1"></script>
   <link rel="stylesheet" href="/admin/assets/admin-queue.css?v=1">
@@ -116,6 +116,8 @@
                 <span>模型</span>
                 <select id="generationModel" name="model">
                   <option value="seedance-2.0">Dreamina Seedance 2.0</option>
+                  <option value="seedance-2.0-fast">Dreamina Seedance 2.0 Fast（仅参考生视频）</option>
+                  <option value="seedance-2.0-mini">Dreamina Seedance 2.0 Mini（仅参考生视频）</option>
                   <option value="seedance-2.5">Dreamina Seedance 2.5（需账号权限）</option>
                 </select>
               </label>

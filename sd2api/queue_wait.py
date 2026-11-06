@@ -43,7 +43,7 @@ MODE_MODELS: dict[str, dict[str, str]] = {
     "reference": R2V_MODELS,
 }
 # Model aliases offered by the admin generate form.
-CONSOLE_MODELS = ("seedance-2.0", "seedance-2.5")
+CONSOLE_MODELS = ("seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini", "seedance-2.5")
 PENDING_STATUSES = {"queued", "running"}
 
 

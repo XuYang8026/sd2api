@@ -343,10 +343,15 @@ def test_admin_queue_wait_lists_estimates_per_model_and_mode(admin_api) -> None:
     assert response.json() == {
         "models": {
             "seedance-2.0": {"reference": {"strategy_id": "2000004", "seconds": 37398, "checked_at": 2_000_000}},
+            "seedance-2.0-fast": {},
+            "seedance-2.0-mini": {},
             "seedance-2.5": {},
         }
     }
-    assert calls == [["2000004", "2000008", "4000005", "4000008", "5000005", "5000007"]]
+    # Mini and Fast exist only for reference-to-video, so they add one strategy each.
+    assert calls == [
+        ["2000004", "2000008", "2000009", "2000012", "4000005", "4000008", "5000005", "5000007"]
+    ]
     assert api.get("/admin/queue-wait").status_code == 401
 
 

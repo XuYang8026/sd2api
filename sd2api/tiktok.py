@@ -22,6 +22,35 @@ T2V_MODELS: dict[str, str] = {
     "dreamina-seedance-2.5": "5000007",
 }
 
+
+def _aliases(*variants: str) -> tuple[str, ...]:
+    """Spellings accepted for one model: bare, ``dreamina-`` prefixed, ``_`` or ``-``."""
+    names = {prefix + variant for variant in variants for prefix in ("", "dreamina-")}
+    return tuple(sorted(names | {name.replace("-", "_") for name in names}))
+
+
+# Seedance 2.0 Mini and Fast exist only as reference-to-video strategies in
+# Creative Studio (``capabilities.r2v`` in the web bundle); T2V and I2V do not
+# offer them. Mini: 2 credits/s, Fast: 3 credits/s, each with its own daily quota.
+MINI_MODEL = "seedance-2.0-mini"
+FAST_MODEL = "seedance-2.0-fast"
+MINI_ALIASES = _aliases("seedance-2.0-mini", "seedance-2-0-mini", "seedance2.0-mini", "seedance2-mini")
+FAST_ALIASES = _aliases("seedance-2.0-fast", "seedance-2-0-fast", "seedance2.0-fast", "seedance2-fast")
+REFERENCE_ONLY_MODELS: dict[str, str] = {
+    **{alias: "2000009" for alias in MINI_ALIASES},
+    **{alias: "2000012" for alias in FAST_ALIASES},
+}
+
+
+def reference_only_error(model: str) -> "TikTokUpstreamError":
+    return TikTokUpstreamError(
+        f"Model {model!r} only supports reference-to-video; "
+        "send at least one reference image or video",
+        status_code=400,
+        code="model_mode_unsupported",
+    )
+
+
 MODEL_PERMISSION_CODES = {"10001100"}
 AUTHENTICATION_ERROR_CODES = {
     "tiktok_authentication_error",

@@ -20,7 +20,14 @@ from playwright.async_api import (
 
 from .config import Settings
 from .models import UpstreamTask
-from .tiktok import T2V_MODELS, TikTokUpstreamError
+from .tiktok import (
+    FAST_ALIASES,
+    MINI_ALIASES,
+    REFERENCE_ONLY_MODELS,
+    T2V_MODELS,
+    TikTokUpstreamError,
+    reference_only_error,
+)
 from .temp_mail import TempMailClient, TempMailError
 from .uploads import StagedMedia
 
@@ -51,6 +58,22 @@ class BrowserJob:
     mode: Literal["text", "image", "reference"] = "text"
     media: tuple[StagedMedia, ...] = ()
     advertiser_id: str | None = None
+
+
+
+def browser_model_label(model: str) -> str:
+    """Name of the model in Creative Studio's model menu."""
+    name = model.strip().lower()
+    if name in MINI_ALIASES:
+        return "Dreamina Seedance 2.0 Mini"
+    if name in FAST_ALIASES:
+        return "Dreamina Seedance 2.0 Fast"
+    return "Dreamina Seedance 2.5" if "2.5" in name else "Dreamina Seedance 2.0"
+
+
+def shows_model(button_text: str, label: str) -> bool:
+    """Whether the model button shows exactly ``label`` ("2.0" must not match "2.0 Fast")."""
+    return re.search(re.escape(label) + r"(?![ \t]*(?:Mini|Fast)\b)", button_text, re.I) is not None
 
 
 class BrowserTikTokClient:
@@ -271,7 +294,9 @@ class BrowserTikTokClient:
         media: list[StagedMedia],
         advertiser_id: str | None,
     ) -> str:
-        if model.lower() not in T2V_MODELS:
+        if model.lower() in REFERENCE_ONLY_MODELS and mode != "reference":
+            raise reference_only_error(model)
+        if model.lower() not in T2V_MODELS and model.lower() not in REFERENCE_ONLY_MODELS:
             raise TikTokUpstreamError(
                 f"Unsupported model {model!r}. Browser mode currently supports Seedance aliases only",
                 status_code=400,
@@ -1440,7 +1465,7 @@ class BrowserTikTokClient:
         )
 
     async def _select_model(self, page: Page, model: str) -> None:
-        target = "Dreamina Seedance 2.5" if "2.5" in model else "Dreamina Seedance 2.0"
+        target = browser_model_label(model)
         selectors = page.get_by_role(
             "button", name=re.compile(r"Dreamina Seedance|Video 1\.5", re.I)
         )
@@ -1453,7 +1478,7 @@ class BrowserTikTokClient:
             raise RuntimeError("Could not find the TikTok model selector")
         current = visible[-1]
         current_text = (await current.inner_text()).strip()
-        if target not in current_text:
+        if not shows_model(current_text, target):
             try:
                 await current.click(timeout=5_000)
             except PlaywrightTimeoutError:

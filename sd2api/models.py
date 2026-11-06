@@ -41,7 +41,7 @@ class SeedanceCreateRequest(BaseModel):
 
     model: str = Field(
         default="seedance-2.0",
-        description="Seedance model alias. seedance-2.0 is verified; 2.5 requires upstream account access.",
+        description="Seedance model alias: seedance-2.0, seedance-2.5 (needs upstream access), or the reference-to-video-only seedance-2.0-fast / seedance-2.0-mini.",
     )
     content: list[SeedanceContent] = Field(
         description="Text plus optional first-frame or multimodal reference media."

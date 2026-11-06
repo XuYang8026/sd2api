@@ -895,11 +895,28 @@ function renderFiles(input, target) {
     <div class="file-item"><div><strong>${esc(file.name)}</strong><span>${formatBytes(file.size)}</span></div><span class="file-kind">${esc((file.type || "file").split("/")[0])}</span></div>`).join("");
 }
 
+// TikTok's price per second of video for each model (Creative Studio capabilities config).
+const CREDITS_PER_SECOND = { "seedance-2.0": 5, "seedance-2.0-fast": 3, "seedance-2.0-mini": 2, "seedance-2.5": 10 };
+// Creative Studio offers Seedance 2.0 Mini and Fast for reference-to-video only.
+const REFERENCE_ONLY_MODELS = new Set(["seedance-2.0-fast", "seedance-2.0-mini"]);
+
 function updateDuration() {
   const seconds = Number($("generationDuration").value);
+  const credits = seconds * (CREDITS_PER_SECOND[$("generationModel").value] ?? CREDITS_PER_SECOND["seedance-2.0"]);
   $("durationValue").textContent = `${seconds} 秒`;
-  $("creditEstimate").textContent = `${seconds} Credits`;
-  $("generateSubmit").querySelector("small").textContent = `预计 ${seconds} Credits`;
+  $("creditEstimate").textContent = `${credits} Credits`;
+  $("generateSubmit").querySelector("small").textContent = `预计 ${credits} Credits`;
+}
+
+function applyModelModes() {
+  const referenceOnly = REFERENCE_ONLY_MODELS.has($("generationModel").value);
+  $$(".mode-button").forEach((button) => {
+    const blocked = referenceOnly && button.dataset.mode !== "reference";
+    button.disabled = blocked;
+    button.title = blocked ? "该模型仅支持参考生视频（R2V）" : "";
+  });
+  if (referenceOnly && $("generationMode").value !== "reference") setGenerationMode("reference");
+  updateDuration();
 }
 
 function validateReferences(files) {
@@ -1118,6 +1135,7 @@ function bindEvents() {
   $("mobileBackdrop").addEventListener("click", closeMobileMenu);
   $$(".mode-button").forEach((button) => button.addEventListener("click", () => setGenerationMode(button.dataset.mode)));
   $("generationDuration").addEventListener("input", updateDuration);
+  $("generationModel").addEventListener("change", applyModelModes);
   $("generationPrompt").addEventListener("input", () => { $("promptCount").textContent = $("generationPrompt").value.length; });
   $("firstFrameInput").addEventListener("change", () => renderFiles($("firstFrameInput"), "firstFramePreview"));
   $("referenceInput").addEventListener("change", () => renderFiles($("referenceInput"), "referencePreview"));

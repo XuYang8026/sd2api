@@ -229,6 +229,8 @@ strong { font-weight: 700; }
 .mode-button:hover { border-color: var(--line-strong); }
 .mode-button.active { border-color: rgba(92, 221, 176, .46); background: var(--brand-soft); color: var(--brand); }
 .mode-button.active strong { color: var(--brand); }
+.mode-button:disabled { opacity: .4; cursor: not-allowed; }
+.mode-button:disabled:hover { border-color: var(--line); }
 
 .form-row { display: grid; gap: 13px; }
 .two-columns { grid-template-columns: 1fr 1fr; }
