@@ -528,6 +528,23 @@ async def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/v1/models", dependencies=[Depends(require_api_key)])
+async def list_models() -> dict[str, Any]:
+    """List adapter-supported models without querying TikTok or consuming credits.
+
+    This is not an account entitlement check. Fast/Mini require reference media;
+    Seedance 2.5 requires upstream access. sora-2 is an alias for Seedance 2.0.
+    created=0 means the upstream model creation timestamp is not known.
+    """
+    return {
+        "object": "list",
+        "data": [
+            {"id": model, "object": "model", "created": 0, "owned_by": "sd2api"}
+            for model in ("seedance-2.0", FAST_MODEL, MINI_MODEL, "seedance-2.5", "sora-2")
+        ],
+    }
+
+
 @app.get("/admin", include_in_schema=False)
 async def admin_dashboard() -> FileResponse:
     return FileResponse(admin_static_dir / "admin.html")

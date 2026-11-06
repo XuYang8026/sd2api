@@ -122,6 +122,29 @@ uvicorn sd2api.main:app --host 127.0.0.1 --port 8765
 
 ## 📖 API 调用示例
 
+### 模型列表 (`GET /v1/models`)
+
+兼容 OpenAI 模型发现接口，可供 ArcReel 等客户端的“测试连接”和“获取模型”使用。
+鉴权沿用视频接口：使用 Bearer API Key，也支持后台创建的托管 Key；配置了鉴权时，缺失或错误密钥返回 `401`。
+
+```bash
+curl http://127.0.0.1:8765/v1/models \
+  -H "Authorization: Bearer your-custom-api-key"
+```
+
+响应格式为 `{"object":"list","data":[...]}`，每项包含 `id`、`object: "model"`、
+`created: 0`（创建时间未知）和 `owned_by: "sd2api"`，依次返回：
+
+- `seedance-2.0`
+- `seedance-2.0-fast`
+- `seedance-2.0-mini`
+- `seedance-2.5`
+- `sora-2`（Seedance 2.0 的兼容别名，不是真正的 Sora）
+
+该接口只列出适配器支持的型号，**不请求 TikTok、不消耗 Credits，也不保证当前账号有对应权限或额度**。
+Fast/Mini 仍仅支持参考生视频；2.5 仍需要上游账号权限。客户端发现型号后仍需配置正确的生成端点：
+模型列表检查通过不等于视频生成参数、参考素材格式和下载链路全部兼容。
+
 ### 1. OpenAI 兼容接口 (`/v1/videos`)
 
 #### Python SDK 调用
