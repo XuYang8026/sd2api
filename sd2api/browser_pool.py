@@ -11,6 +11,7 @@ import uuid
 
 from .browser_client import BrowserTikTokClient
 from .config import Settings
+from .credits import estimated_job_credits
 from .models import UpstreamTask
 from .protocol import ProtocolSession, ProtocolTikTokClient
 from .security import CredentialError, CredentialVault
@@ -18,6 +19,7 @@ from .store import TaskStore
 from .temp_mail import TempMailClient
 from .tiktok import (
     TikTokUpstreamError,
+    is_insufficient_credits_error,
     is_tiktok_authentication_error,
     tiktok_authentication_error,
 )
@@ -455,6 +457,40 @@ class BrowserPoolClient:
             and account.get("credentials_configured")
         ):
             self._schedule_login(account_id)
+
+    def _mark_insufficient_credits(
+        self,
+        account_id: str,
+        advertiser_id: str,
+        known_credits: Any,
+        required_credits: int | None,
+        exc: TikTokUpstreamError,
+    ) -> None:
+        """Record that a subaccount could not pay for a job of this size.
+
+        The stored balance drops just below the job's cost, so jobs of this
+        size skip the subaccount while cheaper ones can still use it until a
+        finished task refreshes the real balance.
+        """
+        ceiling = 0 if required_credits is None else max(required_credits - 1, 0)
+        credits = (
+            min(known_credits, ceiling) if isinstance(known_credits, int) else ceiling
+        )
+        self.store.update_subaccount(account_id, advertiser_id, credits=credits)
+        self.store.add_event(
+            level="warning",
+            category="account",
+            message="Subaccount has insufficient credits for this job; trying another",
+            account_id=account_id,
+            details={
+                "advertiser_id": advertiser_id,
+                "required_credits": required_credits,
+                "credits_before": known_credits,
+                "credits_after": credits,
+                "upstream_code": exc.code,
+                "upstream_message": str(exc),
+            },
+        )
 
     def _decorate_subaccounts(
         self, account_id: str, items: list[dict[str, Any]]
@@ -1347,6 +1383,22 @@ class BrowserPoolClient:
                     code="pool_queue_full",
                 )
 
+            job_credits = estimated_job_credits(model, duration)
+
+            def affordable(pair: tuple[dict[str, Any], dict[str, Any]]) -> bool:
+                credits = pair[1].get("credits")
+                return (
+                    job_credits is None
+                    or not isinstance(credits, int)
+                    or credits >= job_credits
+                )
+
+            # Skip subaccounts whose known balance can't pay for this job. Stored
+            # balances can be stale (e.g. after the weekly refresh), so when none
+            # looks funded the pool still asks TikTok rather than refusing.
+            if any(affordable(pair) for pair in eligible):
+                eligible = [pair for pair in eligible if affordable(pair)]
+
             candidates = [
                 pair
                 for pair in eligible
@@ -1364,6 +1416,7 @@ class BrowserPoolClient:
             try:
                 last_authentication_error: TikTokUpstreamError | None = None
                 quota_failures = 0
+                credit_failures = 0
                 preserve_media = False
                 while candidates:
                     selected_account, selected_subaccount = min(
@@ -1430,6 +1483,16 @@ class BrowserPoolClient:
                                 pair for pair in candidates if pair[0]["id"] != account_id
                             ]
                             continue
+                        if is_insufficient_credits_error(exc):
+                            credit_failures += 1
+                            self._mark_insufficient_credits(
+                                account_id,
+                                advertiser_id,
+                                selected_subaccount.get("credits"),
+                                job_credits,
+                                exc,
+                            )
+                            continue
                         if not self._is_daily_quota_error(exc):
                             raise
                         quota_failures += 1
@@ -1477,17 +1540,30 @@ class BrowserPoolClient:
                 if keepalive_eligible:
                     preserve_media = True
                     raise _KeepalivePending
-                if last_authentication_error is not None and quota_failures == 0:
+                if (
+                    last_authentication_error is not None
+                    and quota_failures == 0
+                    and credit_failures == 0
+                ):
                     raise last_authentication_error
                 if last_authentication_error is not None:
                     raise TikTokUpstreamError(
-                        "All selected accounts are unavailable because their sessions expired "
-                        "or their daily generation quota was exhausted",
+                        "All selected accounts are unavailable because their sessions expired, "
+                        "their daily generation quota was exhausted, or their credits ran out",
                         status_code=503,
                         code="account_pool_unavailable",
                     )
+                if quota_failures == 0:
+                    needed = f" ({job_credits} needed)" if job_credits is not None else ""
+                    raise TikTokUpstreamError(
+                        "All selected subaccounts have insufficient credits for this job"
+                        + needed,
+                        status_code=402,
+                        code="insufficient_credits",
+                    )
                 raise TikTokUpstreamError(
-                    "All selected subaccounts have exhausted their daily generation quota",
+                    "All selected subaccounts have exhausted their daily generation quota"
+                    + (" or lack credits for this job" if credit_failures else ""),
                     status_code=429,
                     code="subaccount_daily_quota_exhausted",
                 )

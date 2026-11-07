@@ -39,6 +39,7 @@
   - 自动发现主账号下的全部 Client / Partner 子账号与 Seedance 2.0 权限。
   - 支持多子账号并发调度，每个子账号独立 CookieJar 隔离。
   - 智能负载均衡调度，支持上游每日额度（Quota Limit）自动熔断降级。
+  - 按“时长 × 每秒 Credits”预估任务花费，跳过已知余额不足的子账号；上游返回余额不足（`10044200 InsufficientCredits`）时自动换号重试，全部不足才返回 `402 insufficient_credits`。
 - 🔄 **全自动化无人值守运维**
   - **自动接码**：对接 [coolqoo/cf_temp_mail](https://github.com/coolqoo/cf_temp_mail)（或兼容该 API 标准的临时邮箱服务）实现登录邮件验证码全自动提取。
   - **自动保活**：定时静默会话保活并自动刷新加密协议凭证。
@@ -402,6 +403,7 @@ pytest
 
 - [x] 多子账号并发调度与槽位管理
 - [x] 上游单日额度（Quota Limit）自动熔断与换号重试
+- [x] 子账号 Credits 不足时自动跳过与换号重试
 - [x] 定时无感会话保活与会话凭证加密存储
 - [x] 临时邮箱自动接码与 noVNC 图形打码支持
 - [x] 多 API Key 授权管理支持

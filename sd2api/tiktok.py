@@ -57,6 +57,16 @@ AUTHENTICATION_ERROR_CODES = {
     "invalidlogin",
     "38001001",
 }
+# 10044200 "InsufficientCredits" is what task creation returns when the
+# subaccount's balance is below duration × credits per second.
+INSUFFICIENT_CREDITS_CODES = {"10044200"}
+INSUFFICIENT_CREDITS_MARKERS = (
+    "insufficientcredit",
+    "insufficient credit",
+    "not enough credit",
+    "积分不足",
+    "余额不足",
+)
 AUTHENTICATION_ERROR_MARKERS = (
     "invalidlogin",
     "invalid login",
@@ -83,6 +93,15 @@ def is_tiktok_authentication_error(exc: BaseException) -> bool:
     if code in AUTHENTICATION_ERROR_CODES:
         return True
     return any(marker in code or marker in message for marker in AUTHENTICATION_ERROR_MARKERS)
+
+
+def is_insufficient_credits_error(exc: BaseException) -> bool:
+    """Recognize TikTok refusing a job because the subaccount can't pay for it."""
+    code = str(getattr(exc, "code", "") or "").strip().lower()
+    if code in INSUFFICIENT_CREDITS_CODES:
+        return True
+    text = f"{code} {exc}".lower()
+    return any(marker in text for marker in INSUFFICIENT_CREDITS_MARKERS)
 
 
 def tiktok_authentication_error() -> TikTokUpstreamError:
